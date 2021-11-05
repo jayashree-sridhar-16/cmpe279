@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <netinet/in.h>
 #include <string.h>
+#include <pwd.h>
 #define PORT 8080
 
 int main(int argc, char const *argv[])
@@ -23,7 +24,8 @@ int main(int argc, char const *argv[])
         exit(EXIT_FAILURE);
     }
 
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT,
+    
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR,
 	&opt, sizeof(opt)))
     {
         perror("setsockopt");
@@ -53,10 +55,31 @@ int main(int argc, char const *argv[])
         exit(EXIT_FAILURE);
     }
 
-    valread = read(new_socket, buffer, 1024);
-    printf("Read %d bytes: %s\n", valread, buffer);
-    send(new_socket, hello, strlen(hello), 0);
-    printf("Hello message sent\n");
+    pid_t pid = fork();
+    int status = 0;
+
+    if (pid < 0) {
+        perror("Fork failed");
+    }
+
+    // process client code only in child process
+    if (pid == 0) {
+        // get nobody info
+        struct passwd *nobodyUser = getpwnam("nobody");
+        if (setuid(nobodyUser->pw_uid) == -1) {
+            perror("Privilege dropping failed");
+        }
+
+        valread = read(new_socket, buffer, 1024);
+        printf("Read %d bytes: %s\n", valread, buffer);
+        send(new_socket, hello, strlen(hello), 0);
+        printf("Hello message sent\n");
+    } else {
+        // parent waits for child to finish and then exit
+        waitpid(pid, &status, 0);
+        exit(0);
+    }
+
 
     return 0;
 }
