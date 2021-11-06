@@ -60,24 +60,26 @@ int main(int argc, char const *argv[])
 
     if (pid < 0) {
         perror("Fork failed");
-    }
-
-    // process client code only in child process
-    if (pid == 0) {
+        exit(EXIT_FAILURE);
+    } else if (pid == 0) { // process client code only in child process
         // get nobody info
         struct passwd *nobodyUser = getpwnam("nobody");
+        printf("\nnobody id: %d", nobodyUser->pw_uid);
         if (setuid(nobodyUser->pw_uid) == -1) {
             perror("Privilege dropping failed");
-        }
+            exit(EXIT_FAILURE);
+        } else {
+            printf("\nPrivilege dropping successful");
 
-        valread = read(new_socket, buffer, 1024);
-        printf("Read %d bytes: %s\n", valread, buffer);
-        send(new_socket, hello, strlen(hello), 0);
-        printf("Hello message sent\n");
+            valread = read(new_socket, buffer, 1024);
+            printf("Read %d bytes: %s\n", valread, buffer);
+            send(new_socket, hello, strlen(hello), 0);
+            printf("Hello message sent\n");
+        }
     } else {
         // parent waits for child to finish and then exit
         waitpid(pid, &status, 0);
-        exit(0);
+        exit(0);        
     }
 
 
